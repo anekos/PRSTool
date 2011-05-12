@@ -189,8 +189,8 @@ class Fixer
   def remove_playlists (xml)
     xml.elements.delete_all(
       xpath(
-        '/xdbLite/records/cache:playlist[not(@uuid)][@prstool]',
-        '/cache/playlist[not(@uuid)][@prstool]'
+        '/xdbLite/records/cache:playlist[not(@uuid)]',
+        '/cache/playlist[not(@uuid)]'
       )
     )
   end
@@ -258,8 +258,7 @@ class Fixer
       list_node.add_attributes(
         'title' => name,
         'sourceid' => source_id.to_s,
-        'id' => playlist_id.to_s,
-        'prstool' => '1'
+        'id' => playlist_id.to_s
       )
       item_ids.each do
         |id|
