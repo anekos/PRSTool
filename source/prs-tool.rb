@@ -113,7 +113,7 @@ class Fixer
     phase("#{@drive} の処理開始")
     xml = REXML::Document.new(File.read(@main_xml_path))
     sync_items(xml) if op.include?(:synchronize)
-    fix_title_author(xml) if op.include?(:fix_title_and_author)
+    fix_title_author(xml) if op.include?(:title)
     sort_items(xml) if op.include?(:sort)
     remove_playlists(xml)
     reset_ids(xml)
@@ -399,5 +399,5 @@ Options = OptionParser.parse(ARGV)
 
 Fixer.execute(
   Options.body, Options.ms, Options.sd, Options.root,
-  [:synchronize, :fix_title_and_author, :playlist, :sort, :save, :body, :ms, :sd]
+  [:synchronize, :title, :playlist, :sort, :save, :body, :ms, :sd]
 )
