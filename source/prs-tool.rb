@@ -115,6 +115,9 @@ class Fixer
     sync_items(xml) if op.include?(:synchronize)
     fix_title_author(xml) if op.include?(:fix_title_and_author)
     sort_items(xml) if op.include?(:sort)
+    remove_playlists(xml)
+    reset_ids(xml)
+    make_playlists(xml) if op.include?(:playlist)
     save_xml(xml) if op.include?(:save)
   end
 
@@ -151,64 +154,6 @@ class Fixer
       end
       result "#{change.removed.size} items"
     end
-
-    block "プレイリスト削除" do
-      xml.elements.delete_all(xpath('/xdbLite/records/cache:playlist[not(@uuid)]', '/cache/playlist'))
-    end
-
-    id_map = {}
-    source_id, playlist_source_id, playlist_id = nil, nil, nil
-    block "ID振りなおし" do
-      if @drive === :body
-        base, source_id, playlist_source_id = 0, 1, 0
-      else
-        source_id = playlist_source_id = @max_id + 1
-        base = @max_id + 2
-      end
-
-      id = base
-      xml.elements.each("#{xpath('/xdbLite/records', '/cache')}/[@id]") do
-        |elem|
-        next if elem.name === 'playlist'
-        id_map[elem.attributes['id']] = id
-        elem.attributes['id'] = id.to_s
-        id += 1
-      end
-
-      playlist_id = id
-      result "sourceid = #{source_id}, playlist = #{playlist_id}"
-    end
-
-    fix_playlist_id(xml, id_map, true)
-
-    block "プレイリスト作成" do
-      list_names = {}
-      xml.elements.each(xpath('/xdbLite/records/cache:text', '/cache/text')) do
-        |elem|
-        next unless path = elem.attributes['path'] and id = elem.attributes['id']
-        next unless P(path).parent.child?(@dest)
-        name = P(path).parent.relative_path_from(@dest).to_s
-        puts(".. = #{path}") if /\.\.\/light/ === name
-        (list_names[name] ||= []) << id
-      end
-      cache_node = xml.elements[xpath('/xdbLite/records', '/cache')]
-      list_names.keys.sort.each do
-        |name|
-        item_ids = list_names[name]
-        list_node = REXML::Element.new(xpath('cache:playlist', 'playlist'))
-        list_node.add_attributes('title' => name, 'sourceid' => source_id.to_s, 'id' => playlist_id.to_s)
-        item_ids.each do
-          |id|
-          item_node = REXML::Element.new('item')
-          item_node.add_attributes('id' => id.to_s)
-          list_node.add(item_node)
-        end
-        cache_node.add(list_node)
-        playlist_id += 1
-        result name
-      end
-      @last_id = playlist_id - 1
-    end
   end
 
   def fix_title_author (xml)
@@ -229,29 +174,106 @@ class Fixer
     phase "著者名/タイトルでソート"
 
     date = Date.new(2000, 1, 1)
-    ids = []
-    id_map = {}
 
     items =
       xml.elements.to_a(xpath('/xdbLite/records/cache:text', '/cache/text')).sort_by do
         |elem|
-        ids << elem.attributes['id'].to_i
         "#{elem.attributes['author']}/#{elem.attributes['title']}"
       end
-
-    items.each_with_index do
-      |elem, index|
-      id_map[elem.attributes['id']] = ids[index]
-      elem.attributes['id'] = ids[index].to_s
-      #elem.attributes['date'] = (date + index).strftime("%a, %d %b %Y %H:%M:%S UTC")
-      #elem.delete_attribute('tz')
-    end
 
     xml.elements.delete_all(xpath('/xdbLite/records/cache:text', '/cache/text'))
     cache_node = xml.elements[xpath('/xdbLite/records', '/cache')]
     items.each {|elem| cache_node.add(elem) }
+  end
 
-    fix_playlist_id(xml, id_map, false)
+  def remove_playlists (xml)
+    xml.elements.delete_all(
+      xpath(
+        '/xdbLite/records/cache:playlist[not(@uuid)][@prstool]',
+        '/cache/playlist[not(@uuid)][@prstool]'
+      )
+    )
+  end
+
+  def reset_ids (xml)
+    id_map = {}
+
+    source_id = nil
+
+    block "ID振りなおし" do
+      if @drive === :body
+        base, source_id = 0, 1, 0
+      else
+        source_id = @max_id + 1
+        base = @max_id + 2
+      end
+
+      id = base
+      xml.elements.each("#{xpath('/xdbLite/records', '/cache')}/[@id]") do
+        |elem|
+        id_map[elem.attributes['id']] = id
+        elem.attributes['id'] = id.to_s
+        @last_id = id
+        id += 1
+      end
+
+      result "sourceid = #{source_id}, lastid = #{@last_id}"
+    end
+
+    @source_id = source_id
+
+    block "プレイリスト内ID修正" do
+      xml.elements.each(xpath('/xdbLite/records/cache:playlist/cache:item', '/cache/playlist/item')) do
+        |elem|
+        old_id = elem.attributes['id']
+        new_id = id_map[old_id]
+        raise "Not found new ID: #{old_id}" unless new_id and old_id
+        elem.attributes['id'] = new_id.to_s
+      end
+    end
+
+  end
+
+  def make_playlists (xml)
+    return unless @last_id and @source_id
+
+    phase "プレイリスト作成"
+
+    playlist_id, source_id = @last_id, @source_id
+
+    list_names = {}
+    xml.elements.each(xpath('/xdbLite/records/cache:text', '/cache/text')) do
+      |elem|
+      next unless path = elem.attributes['path'] and id = elem.attributes['id']
+      next unless P(path).parent.child?(@dest)
+      name = P(path).parent.relative_path_from(@dest).to_s
+      puts(".. = #{path}") if /\.\.\/light/ === name
+      (list_names[name] ||= []) << id
+    end
+    cache_node = xml.elements[xpath('/xdbLite/records', '/cache')]
+    list_names.keys.sort.each do
+      |name|
+      item_ids = list_names[name]
+      list_node = REXML::Element.new(xpath('cache:playlist', 'playlist'))
+      list_node.add_attributes(
+        'title' => name,
+        'sourceid' => source_id.to_s,
+        'id' => playlist_id.to_s,
+        'prstool' => '1'
+      )
+      item_ids.each do
+        |id|
+        item_node = REXML::Element.new('item')
+        item_node.add_attributes('id' => id.to_s)
+        list_node.add(item_node)
+      end
+      cache_node.add(list_node)
+
+      @last_id = playlist_id
+      playlist_id += 1
+
+      result name
+    end
   end
 
   def save_xml (xml)
@@ -331,26 +353,6 @@ class Fixer
     Struct.new(:first, :last).new(ids.first, ids.last)
   end
 
-  def fix_playlist_id (xml, id_map, special)
-    return unless @drive === :body
-
-    xpath =
-     if special
-       '/xdbLite/records/cache:playlist[@uuid]/cache:item'
-     else
-       xpath('/xdbLite/records/cache:playlist/cache:item', '/cache/playlist/item')
-     end
-
-    phase "特殊プレイリストのID修正"
-    xml.elements.each(xpath) do
-      |elem|
-      old_id = elem.attributes['id']
-      new_id = id_map[old_id]
-      raise "Not found new ID: #{old_id}" unless new_id and old_id
-      elem.attributes['id'] = new_id.to_s
-    end
-  end
-
   def xpath (body, media)
     case @drive
     when :body
@@ -397,5 +399,5 @@ Options = OptionParser.parse(ARGV)
 
 Fixer.execute(
   Options.body, Options.ms, Options.sd, Options.root,
-  [:synchronize, :fix_title_and_author, :sort, :save, :body, :ms, :sd]
+  [:synchronize, :fix_title_and_author, :playlist, :sort, :save, :body, :ms, :sd]
 )
