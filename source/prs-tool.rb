@@ -80,11 +80,11 @@ class Fixer
     FileUtils.mv(path, path.sub(/\.\w+\Z/, '.unk'))
   end
 
-  def self.execute (body, ms, sd, dest, op)
+  def self.execute (body, ms, sd, dest, sync_from, op)
     max_id = nil
     [[:body, body], [:ms, ms], [:sd, sd]].each do
       |drive, drive_path|
-      fixer = Fixer.new(drive, drive_path, dest, max_id)
+      fixer = Fixer.new(drive, drive_path, dest, sync_from, max_id)
       fixer.execute(op.include?(drive) ? op : [])
       max_id = fixer.last_id
     end
@@ -95,9 +95,9 @@ class Fixer
 
   attr_reader :main_xml_path, :ext_xml_path
 
-  def initialize (drive, drive_path, dest, max_id = nil)
+  def initialize (drive, drive_path, dest, sync_from, max_id = nil)
     @drive = drive
-    @drive_path, @dest = *[drive_path, dest].map {|it| P(it) }
+    @drive_path, @dest, @sync_from = *[drive_path, dest, sync_from].map {|it| it && P(it) }
     @max_id = max_id
     @last_id = nil
 
@@ -112,6 +112,7 @@ class Fixer
   def execute (op)
     phase("#{@drive} の処理開始")
     xml = REXML::Document.new(File.read(@main_xml_path))
+    sync_files(xml, false)
     sync_items(xml) if op.include?(:synchronize)
     fix_title_author(xml) if op.include?(:title)
     sort_items(xml) if op.include?(:sort)
@@ -131,6 +132,27 @@ class Fixer
   end
 
   private
+
+  def sync_files (xml, real)
+    phase "ファイルの同期"
+
+    exists = {}
+    xml.elements.each(xpath('/xdbLite/records/cache:text', '/cache/text')) do
+      |elem|
+      exists[P(elem.attributes['path']).cleanpath] = 1
+    end
+
+    src = @sync_from + @drive.to_s
+    Find.find(src) do
+      |filepath|
+      next unless File.file?(filepath)
+      dest = @drive_path + @dest + P(filepath).relative_path_from(src)
+      name = (@dest + P(filepath).relative_path_from(src)).cleanpath
+      next if real ? dest.exist? : exists[name]
+      result name
+      FileUtils.cp(filepath, dest)
+    end
+  end
 
   def sync_items (xml)
     change = scan_item_changes(xml)
@@ -380,6 +402,7 @@ class OptionParser
       parser.on('--ms <MS_DRIVE_PATH>') { |it| op.ms = it }
       parser.on('--sd <SD_DRIVE_PATH>') { |it| op.sd = it }
       parser.on('--root <MEDIA_ROOT>') { |it| op.root = it }
+      parser.on('--sync <SYNC_FROM_PATH>') { |it| op.sync = it }
     end
 
     parser.parse!(args)
@@ -397,6 +420,6 @@ end
 Options = OptionParser.parse(ARGV)
 
 Fixer.execute(
-  Options.body, Options.ms, Options.sd, Options.root,
+  Options.body, Options.ms, Options.sd, Options.root, Options.sync,
   [:synchronize, :title, :playlist, :sort, :save, :body, :ms, :sd]
 )
