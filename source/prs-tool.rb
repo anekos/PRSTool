@@ -147,7 +147,7 @@ class Fixer
     block "消去されたアイテム削除" do
       change.removed.each do
         |item|
-        xml.elements['/cache'].each_element_with_attribute('path', item.to_s) do
+        xml.elements[xpath('/xdbLite/records', '/cache')].each_element_with_attribute('path', item.to_s) do
           |e|
           e.parent.delete(e)
         end
