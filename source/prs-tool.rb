@@ -52,7 +52,7 @@ class TextEntry
       :author => @author,
       :path => @path,
       :title => @title,
-      :date => File.mtime(@real_path).strftime("%a, %d %b %Y %H:%M:%S UTC"),
+      :date => File.mtime(@real_path).strftime('%a, %d %b %Y %H:%M:%S UTC'),
       :mime => mime,
       :size => File.size(@real_path)
     }.each {|k, v| elem.attributes[k.to_s] = v.to_s }
@@ -134,7 +134,7 @@ class Fixer
   private
 
   def sync_files (xml, real)
-    phase "ファイルの同期"
+    phase 'ファイルの同期'
 
     exists = {}
     xml.elements.each(xpath('/xdbLite/records/cache:text', '/cache/text')) do
@@ -157,7 +157,7 @@ class Fixer
   def sync_items (xml)
     change = scan_item_changes(xml)
 
-    block "新規アイテム追加" do
+    block '新規アイテム追加' do
       change.added.each do
         |item|
         elem = TextEntry.new(xpath('cache:text', 'text'), @dest + item, @drive_path + @dest + item).to_xml
@@ -166,7 +166,7 @@ class Fixer
       result "#{change.added.size} items"
     end
 
-    block "消去されたアイテム削除" do
+    block '消去されたアイテム削除' do
       change.removed.each do
         |item|
         xml.elements[xpath('/xdbLite/records', '/cache')].each_element_with_attribute('path', item.to_s) do
@@ -193,7 +193,7 @@ class Fixer
   end
 
   def sort_items (xml)
-    phase "著者名/タイトルでソート"
+    phase '著者名/タイトルでソート'
 
     date = Date.new(2000, 1, 1)
 
@@ -222,7 +222,7 @@ class Fixer
 
     source_id = nil
 
-    block "ID振りなおし" do
+    block 'ID振りなおし' do
       if @drive === :body
         base, source_id = 0, 1, 0
       else
@@ -244,7 +244,7 @@ class Fixer
 
     @source_id = source_id
 
-    block "プレイリスト内ID修正" do
+    block 'プレイリスト内ID修正' do
       xml.elements.each(xpath('/xdbLite/records/cache:playlist/cache:item', '/cache/playlist/item')) do
         |elem|
         old_id = elem.attributes['id']
@@ -259,7 +259,7 @@ class Fixer
   def make_playlists (xml)
     return unless @last_id and @source_id
 
-    phase "プレイリスト作成"
+    phase 'プレイリスト作成'
 
     playlist_id, source_id = @last_id, @source_id
 
@@ -298,7 +298,7 @@ class Fixer
   end
 
   def save_xml (xml)
-    phase "XMLファイルに書き出し"
+    phase 'XMLファイルに書き出し'
 
     Fixer.backup_file(@main_xml_path)
     File.open(@main_xml_path, 'w') do
@@ -312,7 +312,7 @@ class Fixer
 
   def scan_item_changes (xml)
     dest_items = {}
-    block "キャッシュ上のファイルを取得" do
+    block 'キャッシュ上のファイルを取得' do
       xml.elements.each(xpath('/xdbLite/records/cache:text', '/cache/text')) do
         |elem|
         next unless path_attr = elem.attributes['path']
@@ -325,7 +325,7 @@ class Fixer
 
     added_items = []
     found_items = {}
-    block "新しいファイルを検索" do
+    block '新しいファイルを検索' do
       Find.find(@drive_path + @dest) do
         |path|
         next unless File.file?(path)
@@ -337,7 +337,7 @@ class Fixer
     end
 
     removed_items = []
-    block "削除されたファイルを取得" do
+    block '削除されたファイルを取得' do
       xml.elements.each(xpath('/xdbLite/records/cache:text', '/cache/text')) do
         |elem|
         next unless path_attr = elem.attributes['path']
