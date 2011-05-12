@@ -318,7 +318,7 @@ class Fixer
         next unless path_attr = elem.attributes['path']
         item = P(path_attr).cleanpath
         next unless item.child?(@dest)
-        dest_items[item.to_s.intern] = 1
+        dest_items[item] = 1
       end
       result "#{dest_items.keys.size} items"
     end
@@ -330,8 +330,8 @@ class Fixer
         |path|
         next unless File.file?(path)
         item = P(path).relative_path_from(@drive_path).cleanpath
-        found_items[item.to_s.intern] = true
-        added_items << item.relative_path_from(@dest) unless dest_items[item.to_s.intern]
+        found_items[item] = true
+        added_items << item.relative_path_from(@dest) unless dest_items[item]
       end
       result "#{added_items.size} items"
     end
@@ -343,7 +343,7 @@ class Fixer
         next unless path_attr = elem.attributes['path']
         item = P(path_attr).cleanpath
         next unless item.child?(@dest)
-        removed_items << item unless found_items[item.to_s.intern]
+        removed_items << item unless found_items[item]
       end
       result "#{removed_items.size} items"
     end
