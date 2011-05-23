@@ -6,10 +6,6 @@ require 'fileutils'
 require 'find'
 require 'pathname'
 
-=begin TODO
-  同期時に、ファイルサイズと日付を考慮する
-=end
-
 def phase (msg)
   puts("<#{msg}>")
 end
