@@ -245,6 +245,9 @@ class Fixer
         base = @max_id + 2
       end
 
+      # XXX 一個もアイテムがない場合
+      @last_id = source_id
+
       id = base
       xml.elements.each("#{xpath('/xdbLite/records', '/cache')}/[@id]") do
         |elem|
