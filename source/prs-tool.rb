@@ -1,10 +1,12 @@
-#!/usr/bin/ruby -Ku
+#!/usr/bin/ruby
+# vim: set fileencoding=utf-8 :
 # vim: set foldmethod=syntax :
 
 require 'rexml/document'
 require 'fileutils'
 require 'find'
 require 'pathname'
+require 'date'
 
 def phase (msg)
   puts("<#{msg}>")
@@ -17,6 +19,16 @@ end
 def block (msg)
   phase(msg)
   yield
+end
+
+def find (path, &block)
+  Find.find(path.to_s) do
+    |it|
+    if Encoding::Windows_31J == it.encoding and /cygwin\Z/ === RUBY_PLATFORM
+      it.force_encoding("UTF-8")
+    end
+    block.call(it)
+  end
 end
 
 def P (path)
@@ -139,7 +151,7 @@ class Fixer
     end
 
     src = @sync_from + @drive.to_s
-    Find.find(src) do
+    find(src) do
       |filepath|
       next unless File.file?(filepath)
       dest = @drive_path + @dest + P(filepath).relative_path_from(src)
@@ -322,7 +334,7 @@ class Fixer
     added_items = []
     found_items = {}
     block '新しいファイルを検索' do
-      Find.find(@drive_path + @dest) do
+      find(@drive_path + @dest) do
         |path|
         next unless File.file?(path)
         item = P(path).relative_path_from(@drive_path).cleanpath
@@ -365,7 +377,7 @@ class Fixer
       |id|
       spaces << (prev + 1 .. id - 1) unless id == prev + 1
       prev = id
-    end
+    end if ids.size > 1
 
     Struct.new(:first, :last).new(ids.first, ids.last)
   end
