@@ -162,6 +162,7 @@ class Fixer
       next if real ? dest.exist? && fsize == dest.size
                    : elem && fsize == elem.attributes['size'].to_i
       result name
+      elem.attributes['size'] = fsize.to_i if elem
       FileUtils.cp(filepath, dest)
       sync_count += 1
     end
