@@ -144,30 +144,44 @@ class Fixer
   def sync_files (xml, real)
     phase 'ファイルの同期'
 
-    exists = {}
+    xml_files = {}
     xml.elements.each(xpath('/xdbLite/records/cache:text', '/cache/text')) do
       |elem|
-      exists[P(elem.attributes['path']).cleanpath] = elem
+      path = P(elem.attributes['path']).cleanpath
+      xml_files[path] = elem if path.child?(@dest)
     end
 
-    sync_count = 0
+    removed_files = xml_files.dup
+
+    added_count = 0
     src = @sync_from + @drive.to_s
     find(src) do
       |filepath|
       next unless File.file?(filepath)
       dest = @drive_path + @dest + P(filepath).relative_path_from(src)
       name = (@dest + P(filepath).relative_path_from(src)).cleanpath
-      elem = exists[name]
+      removed_files.delete(name)
+      elem = xml_files[name]
       fsize = File.size(filepath)
       next if real ? dest.exist? && fsize == dest.size
                    : elem && fsize == elem.attributes['size'].to_i
       result name
       elem.attributes['size'] = fsize.to_i if elem
       FileUtils.cp(filepath, dest)
-      sync_count += 1
+      added_count += 1
     end
 
-    result "#{sync_count} items"
+    result "+ #{added_count} items"
+
+    removed_count = 0
+    removed_files.keys.each do
+      |name|
+      result name
+      (@drive_path + name).delete
+      removed_count += 1
+    end
+
+    result "- #{removed_count} items"
   end
 
   def sync_items (xml)
