@@ -147,7 +147,7 @@ class Fixer
     exists = {}
     xml.elements.each(xpath('/xdbLite/records/cache:text', '/cache/text')) do
       |elem|
-      exists[P(elem.attributes['path']).cleanpath] = 1
+      exists[P(elem.attributes['path']).cleanpath] = elem
     end
 
     src = @sync_from + @drive.to_s
@@ -156,7 +156,10 @@ class Fixer
       next unless File.file?(filepath)
       dest = @drive_path + @dest + P(filepath).relative_path_from(src)
       name = (@dest + P(filepath).relative_path_from(src)).cleanpath
-      next if real ? dest.exist? : exists[name]
+      elem = exists[name]
+      fsize = File.size(filepath)
+      next if real ? dest.exist? && fsize == dest.size
+                   : elem && fsize == elem.attributes['size'].to_i
       result name
       FileUtils.cp(filepath, dest)
     end
