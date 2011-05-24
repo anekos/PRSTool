@@ -150,6 +150,7 @@ class Fixer
       exists[P(elem.attributes['path']).cleanpath] = elem
     end
 
+    sync_count = 0
     src = @sync_from + @drive.to_s
     find(src) do
       |filepath|
@@ -162,7 +163,10 @@ class Fixer
                    : elem && fsize == elem.attributes['size'].to_i
       result name
       FileUtils.cp(filepath, dest)
+      sync_count += 1
     end
+
+    result "#{sync_count} items"
   end
 
   def sync_items (xml)
