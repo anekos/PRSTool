@@ -169,6 +169,7 @@ class Fixer
                    : elem && fsize == elem.attributes['size'].to_i
       result name
       elem.attributes['size'] = fsize.to_i if elem
+      FileUtils.mkdir_p(dest.parent)
       FileUtils.cp(filepath, dest)
       added_count += 1
     end
