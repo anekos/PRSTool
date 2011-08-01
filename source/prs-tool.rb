@@ -423,7 +423,6 @@ class Fixer
   end
 end
 
-
 class OptionParser
   def self.parse (args)
     require 'ostruct'
