@@ -77,6 +77,8 @@ class TextEntry
       'application/x-sony-bbeb'
     when 'epub'
       'application/epub+zip'
+    when 'zbf'
+      'application/xmdf'
     else
       raise 'Unknown File Type'
     end
