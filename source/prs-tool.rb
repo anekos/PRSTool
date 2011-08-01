@@ -180,7 +180,8 @@ class Fixer
     removed_files.keys.each do
       |name|
       result name
-      (@drive_path + name).delete
+      remove_filepath = @drive_path + name
+      remove_filepath.delete if remove_filepath.exist?
       removed_count += 1
     end
 
