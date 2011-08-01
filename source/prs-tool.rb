@@ -298,7 +298,7 @@ class Fixer
 
     phase 'プレイリスト作成'
 
-    playlist_id, source_id = @last_id, @source_id
+    playlist_id, source_id = @last_id + 1, @source_id
 
     list_names = {}
     xml.elements.each(xpath('/xdbLite/records/cache:text', '/cache/text')) do
