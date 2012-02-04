@@ -79,8 +79,10 @@ class TextEntry
       'application/epub+zip'
     when 'zbf'
       'application/xmdf'
+    when 'txt'
+      'text/plain'
     else
-      raise 'Unknown File Type'
+      raise "Unknown File Type: #{@path}"
     end
   end
 end
